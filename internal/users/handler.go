@@ -1,10 +1,12 @@
 package users
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/yabeye/gebeta_api_mvp/common/apperrors"
 	"github.com/yabeye/gebeta_api_mvp/common/httpx"
 	appmiddleware "github.com/yabeye/gebeta_api_mvp/internal/middleware"
 )
@@ -142,6 +144,59 @@ func (h *Handler) DeleteAddress(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.DeleteAddress(r.Context(), userID, addressID); err != nil {
+		httpx.WriteError(w, r, h.logger, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// RegisterDeviceToken handles POST /api/v1/users/me/device-tokens.
+func (h *Handler) RegisterDeviceToken(w http.ResponseWriter, r *http.Request) {
+	userID := appmiddleware.UserIDFromContext(r.Context())
+
+	var req RegisterDeviceTokenRequest
+	if err := httpx.DecodeAndValidate(r, &req); err != nil {
+		httpx.WriteError(w, r, h.logger, err)
+		return
+	}
+
+	token, err := h.service.RegisterDeviceToken(r.Context(), userID, req)
+	if err != nil {
+		httpx.WriteError(w, r, h.logger, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusCreated, token)
+}
+
+// ListDeviceTokens handles GET /api/v1/users/me/device-tokens.
+func (h *Handler) ListDeviceTokens(w http.ResponseWriter, r *http.Request) {
+	userID := appmiddleware.UserIDFromContext(r.Context())
+
+	tokens, err := h.service.ListDeviceTokens(r.Context(), userID)
+	if err != nil {
+		httpx.WriteError(w, r, h.logger, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, tokens)
+}
+
+// DeleteDeviceToken handles DELETE /api/v1/users/me/device-tokens.
+// The token is passed as a query param (?token=...) rather than a
+// path segment, since FCM tokens are long, URL-unfriendly strings —
+// not a good fit for a REST path segment.
+func (h *Handler) DeleteDeviceToken(w http.ResponseWriter, r *http.Request) {
+	userID := appmiddleware.UserIDFromContext(r.Context())
+
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		httpx.WriteError(w, r, h.logger, fmt.Errorf("%w: missing token query parameter", apperrors.ErrValidation))
+		return
+	}
+
+	if err := h.service.DeleteDeviceToken(r.Context(), userID, token); err != nil {
 		httpx.WriteError(w, r, h.logger, err)
 		return
 	}

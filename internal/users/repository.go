@@ -319,3 +319,57 @@ func (r *Repository) withTx(ctx context.Context, fn func(qtx *sqlc.Queries) erro
 	}
 	return tx.Commit(ctx)
 }
+
+// UpsertDeviceToken registers or re-associates an FCM token with
+// userID. Upserting on the unique token handles reinstalls and token
+// rotation cleanly — if the token already exists (possibly under a
+// different user, e.g. a shared/reset device), ownership transfers to
+// the current caller.
+func (r *Repository) UpsertDeviceToken(ctx context.Context, userID uuid.UUID, token, platform string) (DeviceToken, error) {
+	row, err := r.q.UpsertFCMDeviceToken(ctx, sqlc.UpsertFCMDeviceTokenParams{
+		UserID:   userID,
+		Token:    token,
+		Platform: sqlc.DevicePlatform(platform),
+	})
+	if err != nil {
+		return DeviceToken{}, fmt.Errorf("upserting device token: %w", err)
+	}
+
+	return DeviceToken{
+		ID:       row.ID,
+		Token:    row.Token,
+		Platform: string(row.Platform),
+	}, nil
+}
+
+// ListDeviceTokens returns all FCM tokens registered for userID —
+// typically more than one, since a user may be logged in on several
+// devices at once.
+func (r *Repository) ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]DeviceToken, error) {
+	rows, err := r.q.ListDeviceTokensByUser(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("listing device tokens: %w", err)
+	}
+
+	tokens := make([]DeviceToken, 0, len(rows))
+	for _, row := range rows {
+		tokens = append(tokens, DeviceToken{
+			ID:       row.ID,
+			Token:    row.Token,
+			Platform: string(row.Platform),
+		})
+	}
+	return tokens, nil
+}
+
+// DeleteDeviceToken removes a specific token for userID — typically
+// called on logout, so a signed-out device stops receiving push
+// notifications for that account.
+func (r *Repository) DeleteDeviceToken(ctx context.Context, userID uuid.UUID, token string) error {
+	if err := r.q.DeleteDeviceToken(ctx, sqlc.DeleteDeviceTokenParams{
+		Token: token, UserID: userID,
+	}); err != nil {
+		return fmt.Errorf("deleting device token: %w", err)
+	}
+	return nil
+}

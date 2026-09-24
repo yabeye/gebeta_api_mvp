@@ -63,3 +63,15 @@ func (s *Service) ListAddresses(ctx context.Context, userID uuid.UUID) ([]Addres
 func (s *Service) DeleteAddress(ctx context.Context, userID, addressID uuid.UUID) error {
 	return s.repo.DeleteAddress(ctx, userID, addressID)
 }
+
+func (s *Service) RegisterDeviceToken(ctx context.Context, userID uuid.UUID, req RegisterDeviceTokenRequest) (DeviceToken, error) {
+	return s.repo.UpsertDeviceToken(ctx, userID, req.Token, req.Platform)
+}
+
+func (s *Service) ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]DeviceToken, error) {
+	return s.repo.ListDeviceTokens(ctx, userID)
+}
+
+func (s *Service) DeleteDeviceToken(ctx context.Context, userID uuid.UUID, token string) error {
+	return s.repo.DeleteDeviceToken(ctx, userID, token)
+}

@@ -97,3 +97,18 @@ type Profile struct {
 	BirthDate       *time.Time `json:"birth_date"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 }
+
+// RegisterDeviceTokenRequest is the request body for
+// POST /users/me/device-tokens, sent whenever a client obtains or
+// refreshes its FCM token (app install, reinstall, token rotation).
+type RegisterDeviceTokenRequest struct {
+	Token    string `json:"token" validate:"required,min=10"`
+	Platform string `json:"platform" validate:"required,oneof=ios android web"`
+}
+
+// DeviceToken is the API response shape for a registered device token.
+type DeviceToken struct {
+	ID       uuid.UUID `json:"id"`
+	Token    string    `json:"token"`
+	Platform string    `json:"platform"`
+}

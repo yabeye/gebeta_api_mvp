@@ -18,6 +18,12 @@ func Routes(h *Handler) chi.Router {
 			addr.Put("/{id}", h.UpdateAddress)
 			addr.Delete("/{id}", h.DeleteAddress)
 		})
+
+		api.Route("/device_tokens", func(dt chi.Router) {
+			dt.Get("/", h.ListDeviceTokens)
+			dt.Post("/", h.RegisterDeviceToken)
+			dt.Delete("/", h.DeleteDeviceToken)
+		})
 	})
 
 	return r
